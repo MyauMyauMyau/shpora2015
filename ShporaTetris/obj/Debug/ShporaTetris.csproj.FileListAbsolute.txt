@@ -1,0 +1,10 @@
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\ShporaTetris.exe.config
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\obj\Debug\ShporaTetris.csprojResolveAssemblyReference.cache
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\ShporaTetris.exe
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\ShporaTetris.pdb
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\System.Collections.Immutable.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\System.Collections.Immutable.xml
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\obj\Debug\ShporaTetris.exe
+C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\obj\Debug\ShporaTetris.pdb
