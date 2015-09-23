@@ -1,0 +1,13 @@
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\UnitTestTetris.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\UnitTestTetris.pdb
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\Microsoft.VisualStudio.QualityTools.UnitTestFramework.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\ShporaTetris.exe
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\System.Collections.Immutable.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\ShporaTetris.pdb
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\System.Collections.Immutable.xml
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\bin\Debug\ru\Microsoft.VisualStudio.QualityTools.UnitTestFramework.resources.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\obj\Debug\UnitTestTetris.csprojResolveAssemblyReference.cache
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\obj\Debug\UnitTestTetris.dll
+C:\Users\Meow\Desktop\git\ShporaTetris\UnitTestTetris\obj\Debug\UnitTestTetris.pdb

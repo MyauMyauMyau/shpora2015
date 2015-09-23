@@ -9,17 +9,21 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Collections.Immutable;
 using Newtonsoft.Json.Linq;
-
+using System.Diagnostics;
 namespace ShporaTetris
 {
     class Program
     {
         static void Main(string[] args)
         {
-            var tetris = new Tetris(@"tests/smallest.json");
-            Console.Write(String.Join(",",tetris.GameStream.Commands));
-            Console.Write(tetris.GameStream.Pieces[1].RelativeCoordinates[1].Y);
-            Console.ReadKey();
+            var t = new Stopwatch();
+            t.Start();
+            //var tetris = new Tetris(@"tests/smallest.json");
+            var tetris = new Tetris(@"tests/clever-w20-h25-c100000.json");
+            
+            tetris.Play();
+            Console.WriteLine(t.Elapsed);
+            t.Stop();
         }
     }
 
@@ -27,54 +31,72 @@ namespace ShporaTetris
     public sealed class Tetris
     {
         public GameStream GameStream { get; }
-        private ImmutableDictionary<char, Action<Piece>> Actions { get; }
+        private ImmutableDictionary<char, Func<Piece, Piece>> Actions { get; }
         public Tetris(string jsonFilePath)
         {
             GameStream = new GameStream(jsonFilePath);
-            Actions = new Dictionary<char, Action<Piece>>()
+            Actions = new Dictionary<char, Func<Piece, Piece>>()
             {
-                {'A', currentPiece => Piece.Move(currentPiece, DirectionOfMovement.Left)},
-                {'D', currentPiece => Piece.Move(currentPiece, DirectionOfMovement.Right)},
-                {'S', currentPiece => Piece.Move(currentPiece, DirectionOfMovement.Down)},
-                {'W', currentPiece => Piece.Move(currentPiece, DirectionOfMovement.Up)},
-                {'Q', currentPiece => Piece.Rotate(currentPiece, DirectionOfRotation.Clockwise)},
-                {'E', currentPiece => Piece.Rotate(currentPiece, DirectionOfRotation.Anticlockwise)}
+                {'A', currentPiece => currentPiece.Move(DirectionOfMovement.Left)},
+                {'D', currentPiece => currentPiece.Move(DirectionOfMovement.Right)},
+                {'S', currentPiece => currentPiece.Move(DirectionOfMovement.Down)},
+                {'W', currentPiece => currentPiece.Move(DirectionOfMovement.Up)},
+                {'Q', currentPiece => currentPiece.Rotate(DirectionOfRotation.Anticlockwise)},
+                {'E', currentPiece => currentPiece.Rotate(DirectionOfRotation.Clockwise)}
             }
             .ToImmutableDictionary();
         }
 
         public void Play()
         {
+            var commandCount = -1;
             var pieceCounter = 0;
             var currentPiece = GameStream.Pieces[0];
             var gameField = ImmutableHashSet<Point>.Empty;
-            Piece.Drop(currentPiece, GameStream.Width);
+            currentPiece = currentPiece.Drop(GameStream.Width);
             var points = 0;
-            if (CheckCollisions(currentPiece,gameField))
+            if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
             {
                 points -= 10;
             }
             GameStream.Commands
                 .ForEach(command =>
                 {
+                    commandCount++;
                     if (command == 'P')
                         PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
                     else
                     {
-                        Actions[command](currentPiece);
-                        if (CheckCollisions(currentPiece, gameField))
+                        currentPiece = Actions[command](currentPiece);
+                        //try
+                        //{
+
+                        //    Console.WriteLine(command);
+                        //    PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
+                        //    Console.WriteLine();
+                        //    Console.ReadKey();
+                        //}
+                        //catch (Exception e)
+                        //{
+                        //    Console.WriteLine(e.ToString());
+                        //}
+                        if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
                         {
-                            Actions[GameStream.ReverseCommands[command]](currentPiece);
+                            currentPiece = Actions[GameStream.ReverseCommands[command]](currentPiece);
                             gameField = PlacePiece(currentPiece, gameField);
-                            gameField = CheckFilledLines(gameField, GameStream.Width, GameStream.Height, ref points);
+                            gameField = CheckFilledLines(gameField, GameStream.Width, ref points);
                             pieceCounter++;
                             currentPiece = GameStream.Pieces[pieceCounter % GameStream.Pieces.Count()];
-                            Piece.Drop(currentPiece, GameStream.Width);
-                            if (CheckCollisions(currentPiece,gameField))
+                            currentPiece = currentPiece.Drop(GameStream.Width);
+                            //PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
+                            //Console.WriteLine();
+                            //Console.ReadKey();
+                            if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
                             {
                                 gameField = ImmutableHashSet<Point>.Empty;
                                 points -= 10;
                             }
+                            Console.WriteLine(commandCount + " " + points);
                         }
                     }
                 });
@@ -82,48 +104,53 @@ namespace ShporaTetris
 
         private void PrintField(Piece currentPiece, ImmutableHashSet<Point> gameField, int width, int height)
         {
-            var formattedField = new string[width,height];
+            var formattedField = new string[width, height];
             foreach (var cell in gameField)
-                formattedField[cell.X, cell.Y] = "#";
-            foreach (var cell in currentPiece.AbsoluteCoordinates)
-                formattedField[cell.X, cell.Y] = "*";
-            for (int i = 0; i < width; i++)
+                formattedField[cell.AbsX, cell.AbsY] = "#";
+            foreach (var cell in currentPiece.Coordinates)
+                formattedField[cell.AbsX, cell.AbsY] = "*";
+            for (int i = 0; i < height; i++)
             {
                 for (int j = 0; j < width; j++)
-                    Console.WriteLine(formattedField[i, j] ?? ".");
+                    Console.Write(formattedField[j, i] ?? ".");
                 Console.WriteLine();
             }
         }
-
-
-        private ImmutableHashSet<Point> CheckFilledLines(ImmutableHashSet<Point> gameField, int width, int height, ref int points)
+        public ImmutableHashSet<Point> CheckFilledLines(ImmutableHashSet<Point> gameField, int width, ref int points)
         {
-            var tempPoints = points;
-            Enumerable.Range(0, height)
-                .Where(index => gameField
-                                        .Where(cell => cell.Y == index)
-                                        .Count() == width)
-                .Process(index =>
+            int fallingHeight = 0;
+            gameField = gameField
+                .GroupBy(c => c.AbsY)
+                .OrderByDescending(g => g.Key)
+                .SelectMany(g =>
                 {
-                    gameField = gameField.Where(cell => cell.Y != index).ToImmutableHashSet();
-                    tempPoints += 1;
+                    if (g.Count() == width)
+                    {
+                        fallingHeight++;
+                        return Enumerable.Empty<Point>();
+                    }
+                    else
+                        return g.Select(x => x.Move(0, fallingHeight));
                 })
-                .ForEach(index => gameField = gameField
-                                        .Select(cell => index > cell.Y ? cell.WithY(cell.Y - 1) : cell)
-                                        .ToImmutableHashSet<Point>());
-            points = tempPoints;
+                .ToImmutableHashSet();
+            points += fallingHeight;
             return gameField;
         }
 
-        private ImmutableHashSet<Point> PlacePiece(Piece piece, ImmutableHashSet<Point> gameField)
-        {
-            return 
-                gameField.Concat(piece.AbsoluteCoordinates).ToImmutableHashSet();
-        }
-        private bool CheckCollisions(Piece piece, ImmutableHashSet<Point> gameField)
+        public ImmutableHashSet<Point> PlacePiece(Piece piece, ImmutableHashSet<Point> gameField)
         {
             return
-                !gameField.Intersect(piece.AbsoluteCoordinates).IsEmpty;
+                gameField.Concat(piece.Coordinates).ToImmutableHashSet();
+        }
+        public bool CheckCollisions(Piece piece, ImmutableHashSet<Point> gameField, int width, int height)
+        {
+            foreach (var cell in piece.Coordinates)
+            {
+                if (cell.AbsX < 0 || cell.AbsY < 0 || cell.AbsX >= width || cell.AbsY >= height)
+                    return true;
+            }
+            return
+                gameField.Overlaps(piece.Coordinates);
         }
     }
 
@@ -163,41 +190,95 @@ namespace ShporaTetris
     }
     public sealed class Piece
     {
-        public ImmutableArray<Point> RelativeCoordinates{ get; }
-        public ImmutableArray<Point> AbsoluteCoordinates { get; }
+        public ImmutableArray<Point> Coordinates{ get; }
         static public explicit operator Piece(ImmutableArray<Point> cells)
         {
             return new Piece(cells);
         }
         public Piece(ImmutableArray<Point> cells)
         {
-            RelativeCoordinates = cells;
+            Coordinates = cells;
         }
-        public static void Move(Piece piece, DirectionOfMovement directionOfMovement)
+
+        public Piece Move(DirectionOfMovement directionOfMovement)
         {
-            throw new NotImplementedException();
+            var moveDictionary = new Dictionary<DirectionOfMovement, Func<Piece>>()
+            {
+                {DirectionOfMovement.Down, () =>
+                        new Piece(Coordinates.Select(x => x.Move(0,1)).ToImmutableArray())},
+                {DirectionOfMovement.Up, () =>
+                    new Piece(Coordinates.Select(x => x.Move(0,-1)).ToImmutableArray())},
+                {DirectionOfMovement.Left, () =>
+                    new Piece(Coordinates.Select(x => x.Move(-1,0)).ToImmutableArray())},
+                {DirectionOfMovement.Right, () =>
+                    new Piece(Coordinates.Select(x => x.Move(1,0)).ToImmutableArray())}
+            };
+
+            return moveDictionary[directionOfMovement]();
         }
-        public static void Rotate(Piece piece, DirectionOfRotation directionOfRotation)
+        public Piece Rotate(DirectionOfRotation directionOfRotation)
         {
-            throw new NotImplementedException();
+            return new Piece(Coordinates
+                                    .Select(x => x.Rotate(directionOfRotation))
+                                    .ToImmutableArray());
         }
-        public static void Drop(Piece piece, int width)
+        public Piece Drop(int width)
         {
-            throw new NotImplementedException();
+            var minX = Coordinates.Min(x=> x.RelX);
+            var minY = Coordinates.Min(x => x.RelY);
+            var figureWidth =  Coordinates.Max(x => x.RelX) - minX + 1;
+            return new Piece(Coordinates
+                .Select(c => new Point(c.RelX, c.RelY, c.RelX + (width - figureWidth)/2- minX, c.RelY - minY))
+                .ToImmutableArray());
+        }
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Piece)) return false;
+            for (int i = 0; i < Coordinates.Count(); i++)
+            {
+                if (!Coordinates[i].Equals((obj as Piece).Coordinates[i]))
+                    return false;
+            }
+            return true;
+        }
+        public override int GetHashCode()
+        {
+            return Coordinates
+                .Aggregate(0, (total, next) => total + next.AbsX.GetHashCode() + next.AbsY.GetHashCode());
         }
     }
     public struct Point
     {
-        public int X { get;}
-        public int Y { get;}
-        public Point(int x, int y)
+        public int RelX { get; }
+        public int RelY { get; }
+        public int AbsX { get; }
+        public int AbsY { get; }
+        public Point(int relX, int relY, int absX = 0, int absY = 0)
         {
-            X = x;
-            Y = y;
+            RelX = relX;
+            RelY = relY;
+            AbsX = absX;
+            AbsY = absY;
         }
-        public Point WithY(int y)
+        public Point Move(int xShift, int yShift)
         {
-            return new Point(X, y);
+            return new Point(RelX, RelY, AbsX + xShift, AbsY + yShift);
+        }
+        public Point Rotate(DirectionOfRotation dirOfRotation)
+        {
+            var x0 = AbsX - RelX;
+            var y0 = AbsY - RelY;
+            return dirOfRotation == DirectionOfRotation.Clockwise ?
+                new Point(-1*RelY, RelX,x0 - AbsY + y0,y0 + AbsX - x0) :
+                new Point(RelY, -1*RelX, x0 + AbsY - y0, y0 - AbsX + x0);
+        }
+        public override bool Equals(object obj)
+        {
+            return obj is Point && AbsX == ((Point)obj).AbsX && AbsY == ((Point)obj).AbsY;
+        }
+        public override int GetHashCode()
+        {
+            return AbsX.GetHashCode() + AbsY.GetHashCode();
         }
     }
     public enum DirectionOfMovement
