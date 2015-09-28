@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Newtonsoft.Json;
@@ -18,7 +16,7 @@ namespace ShporaTetris
         {
             var t = new Stopwatch();
             t.Start();
-            //var tetris = new Tetris(@"tests/smallest.json");
+            //var tetris = new Tetris(@"tests/cubes-w1000-h1000-c1000000.json");
             var tetris = new Tetris(@"tests/clever-w20-h25-c100000.json");
             
             tetris.Play();
@@ -54,52 +52,40 @@ namespace ShporaTetris
             var currentPiece = GameStream.Pieces[0];
             var gameField = ImmutableHashSet<Point>.Empty;
             currentPiece = currentPiece.Drop(GameStream.Width);
-            var points = 0;
+            var totalPoints = 0;
+            int bonusPoints = 0;
             if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
             {
-                points -= 10;
+                totalPoints -= 10;
             }
-            GameStream.Commands
-                .ForEach(command =>
+            foreach (var command in GameStream.Commands)
+            {
+                commandCount++;
+                if (command == 'P')
+                    PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
+                else
                 {
-                    commandCount++;
-                    if (command == 'P')
-                        PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
-                    else
+                    currentPiece = Actions[command](currentPiece);
+                        
+                    if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
                     {
-                        currentPiece = Actions[command](currentPiece);
-                        //try
-                        //{
+                        currentPiece = Actions[GameStream.ReverseCommands[command]](currentPiece);
+                        gameField = PlacePiece(currentPiece, gameField);
+                        gameField = CheckFilledLines(gameField, GameStream.Width, out bonusPoints);
+                        totalPoints += bonusPoints;
+                        pieceCounter++;
+                        currentPiece = GameStream.Pieces[pieceCounter % GameStream.Pieces.Count()];
+                        currentPiece = currentPiece.Drop(GameStream.Width);
 
-                        //    Console.WriteLine(command);
-                        //    PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
-                        //    Console.WriteLine();
-                        //    Console.ReadKey();
-                        //}
-                        //catch (Exception e)
-                        //{
-                        //    Console.WriteLine(e.ToString());
-                        //}
                         if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
                         {
-                            currentPiece = Actions[GameStream.ReverseCommands[command]](currentPiece);
-                            gameField = PlacePiece(currentPiece, gameField);
-                            gameField = CheckFilledLines(gameField, GameStream.Width, ref points);
-                            pieceCounter++;
-                            currentPiece = GameStream.Pieces[pieceCounter % GameStream.Pieces.Count()];
-                            currentPiece = currentPiece.Drop(GameStream.Width);
-                            //PrintField(currentPiece, gameField, GameStream.Width, GameStream.Height);
-                            //Console.WriteLine();
-                            //Console.ReadKey();
-                            if (CheckCollisions(currentPiece, gameField, GameStream.Width, GameStream.Height))
-                            {
-                                gameField = ImmutableHashSet<Point>.Empty;
-                                points -= 10;
-                            }
-                            Console.WriteLine(commandCount + " " + points);
+                            gameField = ImmutableHashSet<Point>.Empty;
+                            totalPoints -= 10;
                         }
+                        Console.WriteLine(commandCount + " " + totalPoints);
                     }
-                });
+                }
+            }
         }
 
         private void PrintField(Piece currentPiece, ImmutableHashSet<Point> gameField, int width, int height)
@@ -116,9 +102,9 @@ namespace ShporaTetris
                 Console.WriteLine();
             }
         }
-        public ImmutableHashSet<Point> CheckFilledLines(ImmutableHashSet<Point> gameField, int width, ref int points)
+        public ImmutableHashSet<Point> CheckFilledLines(ImmutableHashSet<Point> gameField, int width, out int bonusPoints)
         {
-            int fallingHeight = 0;
+            var fallingHeight = 0;
             gameField = gameField
                 .GroupBy(c => c.AbsY)
                 .OrderByDescending(g => g.Key)
@@ -133,7 +119,7 @@ namespace ShporaTetris
                         return g.Select(x => x.Move(0, fallingHeight));
                 })
                 .ToImmutableHashSet();
-            points += fallingHeight;
+            bonusPoints = fallingHeight;
             return gameField;
         }
 
@@ -142,11 +128,13 @@ namespace ShporaTetris
             return
                 gameField.Concat(piece.Coordinates).ToImmutableHashSet();
         }
+
         public bool CheckCollisions(Piece piece, ImmutableHashSet<Point> gameField, int width, int height)
         {
             foreach (var cell in piece.Coordinates)
             {
-                if (cell.AbsX < 0 || cell.AbsY < 0 || cell.AbsX >= width || cell.AbsY >= height)
+                if (cell.AbsX < 0 || cell.AbsY < 0 
+                    || cell.AbsX >= width || cell.AbsY >= height)
                     return true;
             }
             return
@@ -171,6 +159,7 @@ namespace ShporaTetris
             {'E', 'Q'}
         }
         .ToImmutableDictionary();
+
         public GameStream(string jsonFilePath)
         {
             using (StreamReader jsonReader = File.OpenText(jsonFilePath))
@@ -195,6 +184,7 @@ namespace ShporaTetris
         {
             return new Piece(cells);
         }
+
         public Piece(ImmutableArray<Point> cells)
         {
             Coordinates = cells;
@@ -216,12 +206,14 @@ namespace ShporaTetris
 
             return moveDictionary[directionOfMovement]();
         }
+
         public Piece Rotate(DirectionOfRotation directionOfRotation)
         {
             return new Piece(Coordinates
                                     .Select(x => x.Rotate(directionOfRotation))
                                     .ToImmutableArray());
         }
+
         public Piece Drop(int width)
         {
             var minX = Coordinates.Min(x=> x.RelX);
@@ -231,6 +223,7 @@ namespace ShporaTetris
                 .Select(c => new Point(c.RelX, c.RelY, c.RelX + (width - figureWidth)/2- minX, c.RelY - minY))
                 .ToImmutableArray());
         }
+
         public override bool Equals(object obj)
         {
             if (!(obj is Piece)) return false;
@@ -241,6 +234,7 @@ namespace ShporaTetris
             }
             return true;
         }
+
         public override int GetHashCode()
         {
             return Coordinates
@@ -253,6 +247,7 @@ namespace ShporaTetris
         public int RelY { get; }
         public int AbsX { get; }
         public int AbsY { get; }
+
         public Point(int relX, int relY, int absX = 0, int absY = 0)
         {
             RelX = relX;
@@ -260,27 +255,32 @@ namespace ShporaTetris
             AbsX = absX;
             AbsY = absY;
         }
+
         public Point Move(int xShift, int yShift)
         {
             return new Point(RelX, RelY, AbsX + xShift, AbsY + yShift);
         }
+
         public Point Rotate(DirectionOfRotation dirOfRotation)
         {
             var x0 = AbsX - RelX;
             var y0 = AbsY - RelY;
             return dirOfRotation == DirectionOfRotation.Clockwise ?
-                new Point(-1*RelY, RelX,x0 - AbsY + y0,y0 + AbsX - x0) :
-                new Point(RelY, -1*RelX, x0 + AbsY - y0, y0 - AbsX + x0);
+                new Point(-RelY, RelX,x0 - AbsY + y0,y0 + AbsX - x0) :
+                new Point(RelY, -RelX, x0 + AbsY - y0, y0 - AbsX + x0);
         }
+
         public override bool Equals(object obj)
         {
             return obj is Point && AbsX == ((Point)obj).AbsX && AbsY == ((Point)obj).AbsY;
         }
+
         public override int GetHashCode()
         {
             return AbsX.GetHashCode() + AbsY.GetHashCode();
         }
     }
+
     public enum DirectionOfMovement
     {
         Left,
@@ -288,27 +288,30 @@ namespace ShporaTetris
         Down,
         Up
     }
+
     public enum DirectionOfRotation
     {
         Clockwise,
         Anticlockwise
     }
-    public static class IEnumerableExtensions
-    {
-        public static void ForEach<T>(this IEnumerable<T> value, Action<T> action)
-        {
-            foreach (T item in value)
-            {
-                action(item);
-            }
-        }
-        public static IEnumerable<T> Process<T>(this IEnumerable<T> value, Action<T> action)
-        {
-            foreach (T item in value)
-            {
-                action(item);
-                yield return item;
-            }
-        }
-    }
+
+    //public static class IEnumerableExtensions
+    //{
+    //    public static void ForEach<T>(this IEnumerable<T> value, Action<T> action)
+    //    {
+    //        foreach (T item in value)
+    //        {
+    //            action(item);
+    //        }
+    //    }
+
+    //    public static IEnumerable<T> Process<T>(this IEnumerable<T> value, Action<T> action)
+    //    {
+    //        foreach (T item in value)
+    //        {
+    //            action(item);
+    //            yield return item;
+    //        }
+    //    }
+    //}
 }

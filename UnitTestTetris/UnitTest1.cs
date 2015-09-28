@@ -239,7 +239,7 @@ namespace UnitTestTetris
         public void TestCheckFilledLines()
         {
             var t = new Tetris(@"C:\Users\Meow\Desktop\git\ShporaTetris\ShporaTetris\bin\Debug\tests\smallest.json");
-            var points = 10;
+            var points = 0; 
             var field = new List<Point>()
             {
                 new Point(0,0,0,3),
@@ -254,7 +254,7 @@ namespace UnitTestTetris
                 new Point(0,0,5,3),
 
             }.ToImmutableHashSet();
-            var result = t.CheckFilledLines(field, 6, ref points);
+            var result = t.CheckFilledLines(field, 6, out points);
             var expected = new List<Point>()
             {
                 new Point(0,0,1,4),
@@ -264,7 +264,7 @@ namespace UnitTestTetris
             }.ToImmutableHashSet();
             var isCorrect = expected.SetEquals(result);
             Assert.AreEqual(true, isCorrect, result.ElementAt(3).AbsX +" " + result.ElementAt(3).AbsY);
-            Assert.AreEqual(11, points);
+            Assert.AreEqual(1, points);
         }
         [TestMethod]
         public void TestCheckFilledLines2()
@@ -285,7 +285,7 @@ namespace UnitTestTetris
                 new Point(0,0,5,4),
 
             }.ToImmutableHashSet();
-            var result = t.CheckFilledLines(field, 6, ref points);
+            var result = t.CheckFilledLines(field, 6,out points);
             var expected = new List<Point>()
             {
                 new Point(0,0,0,3),
@@ -301,7 +301,7 @@ namespace UnitTestTetris
             }.ToImmutableHashSet();
             var isCorrect = expected.SetEquals(result);
             Assert.AreEqual(true, isCorrect, result.ElementAt(3).AbsX + " " + result.ElementAt(3).AbsY);
-            Assert.AreEqual(10, points);
+            Assert.AreEqual(0, points);
         }
         [TestMethod]
         public void TestPlacePiece()
